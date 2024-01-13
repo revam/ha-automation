@@ -5,6 +5,17 @@ use them as is, or just copy and modify them to your heart's desire.
 
 ## Available Blueprints
 
+- `/events` — Event based automation blueprints.
+
+  - `/rflink_button_events.yaml` — RFLink Button Events.
+    <p>
+      A simple automation blueprint to run actions when pressing the buttons on
+      a RFLink button target with 'fire_event' set to true.
+    </p>
+    <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//github.com/revam/ha-automation/blob/main/blueprints/events/rflink_button_events.yaml" target="_blank" rel="noreferrer">
+      <img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled."  style="width: 100%; max-width: 212px;"/>
+    </a>
+
 - `/lights` — Light based automation blueprints.
 
   - `/presence_light.yaml` — Presense-activated Light.

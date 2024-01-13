@@ -1,0 +1,55 @@
+blueprint:
+  name: RFLink Button Events
+  description: A simple automation blueprint to run actions when pressing the
+    buttons on a RFLink button target with 'fire_event' set to true.
+  domain: automation
+  source_url: https://github.com/revam/ha-automation/blob/main/blueprints/events/rflink_button_events.yaml
+  author: revam
+  input:
+    button_target:
+      name: (Required) Button Target
+      description: Select the remote control you wish to use.
+      selector:
+        entity:
+          filter:
+            - integration: rflink
+              domain:
+                - switch
+                - light
+    action_button_on:
+      name: (Optional) Action Button On
+      description: Action(s) to run on when the 'On' button is pressed.
+      default: []
+      selector:
+        action: {}
+    action_button_off:
+      name: (Optional) Action Button Off
+      description: Action(s) to run on when the 'Off' button is pressed.
+      default: []
+      selector:
+        action: {}
+mode: restart
+max_exceeded: silent
+trigger:
+  - platform: event
+    event_type: button_pressed
+    event_data:
+      entity_id: !input button_target
+action:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: '{{ trigger.event.data.state in ["on", "allon"] }}'
+        sequence:
+          - alias: Running On Action
+            choose:
+              - conditions: []
+                sequence: !input action_button_on
+      - conditions:
+          - condition: template
+            value_template: '{{ trigger.event.data.state in ["off", "alloff"] }}'
+        sequence:
+          - alias: Running Off Action
+            choose:
+              - conditions: []
+                sequence: !input action_button_off
