@@ -1,0 +1,220 @@
+blueprint:
+  name: Presense-activated Light with Pause
+  description: Turn on the lights when any kind of presence is detected, and
+    turn them back off when no presence is detected after the wait time have
+    elapsed. Additionally, will pause the automation when a pause target is
+    active. Works with three kinds of sensor types; Motion, moving & occupancy.
+  domain: automation
+  source_url: https://github.com/revam/ha-automation/blob/main/blueprints/lights/presence_light_with_pause.yaml
+  author: revam
+  input:
+    light_targets:
+      name: Lights
+      description: The lights to control.
+      selector:
+        target:
+          entity:
+          - domain:
+            - light
+    presence_targets:
+      name: Presence Sensors
+      description: The sensors used to detect presence in the area to monitor.
+      selector:
+        entity:
+          filter:
+          - device_class:
+            - motion
+            - moving
+            - occupancy
+            domain:
+            - binary_sensor
+          multiple: true
+    no_presence_wait:
+      name: No Presence Wait Time
+      description: Time to leave the light on after no presence is detected.
+      default: 120
+      selector:
+        number:
+          min: 0.0
+          max: 3600.0
+          unit_of_measurement: seconds
+          step: 1.0
+          mode: slider
+    pause_targets:
+      name: Pause Sensors/Switches
+      description: The sensors or switches used to detect when the automation
+        should pause. The automation will stay in a paused state as long as any
+        of the provided entities are active.
+      default: []
+      selector:
+        entity:
+          filter:
+            domain:
+            - switch
+            - binary_sensor
+            - input_boolean
+          multiple: true
+    pause_state_target:
+      name: Paused State
+      description: The last paused state. Used to detect when the active pause
+        state changes and act accordingly.
+      selector:
+        entity:
+          filter:
+            domain: input_boolean
+          multiple: false
+    turn_on_pause:
+      name: Turn On Lights when Paused
+      description: Turn on all lights when the automation is paused.
+      default: false
+      selector:
+        boolean:
+    turn_off_resume:
+      name: Turn Off Lights when Resumed
+      description: Turn off all lights when the automation is resumed.
+      default: false
+      selector:
+        boolean:
+    resume_wait:
+      name: Resume Wait Time
+      description: Time to wait until reacting to presence events after resuming
+        from a paused state.
+      default: 30
+      selector:
+        number:
+          min: 0.0
+          max: 120.0
+          unit_of_measurement: seconds
+          step: 1.0
+          mode: slider
+mode: restart
+max_exceeded: silent
+variables:
+  lights: !input 'light_targets'
+  # if somebody knows an easier way that works reliably with targets, then please do tell me.
+  light_entities: |
+    {%- macro target_entities(target, domain_filter='light') -%}
+      {%- set en = namespace(tries=[]) -%}
+      {%- if target.area_id is defined -%}
+        {%- if target.area_id is string -%}
+          {%- set en.tries = en.tries + (area_entities(target.area_id) | reject('is_hidden_entity') | select('match', '^' ~ domain_filter ~ '\.') | list) -%}
+        {%- else -%}
+          {%- for a in target.area_id -%}
+            {%- set en.tries = en.tries + (area_entities(a) | reject('is_hidden_entity') | select('match', '^' ~ domain_filter ~ '\.') | list) -%}
+          {%- endfor -%}
+        {%- endif -%}
+      {%- endif -%}
+      {%- if target.device_id is defined -%}
+        {%- if target.device_id is string -%}
+          {%- set en.tries = en.tries + (device_entities(target.device_id) | reject('is_hidden_entity') | select('match', '^' ~ domain_filter ~ '\.') | list) -%}
+        {%- else -%}
+          {%- for device_id in target.device_id -%}
+            {%- set en.tries = en.tries + (device_entities(device_id) | reject('is_hidden_entity') | select('match', '^' ~ domain_filter ~ '\.') | list) -%}
+          {%- endfor -%}
+        {%- endif -%}
+      {%- endif -%}
+      {%- if target.entity_id is defined -%}
+        {%- if target.entity_id is string -%}
+          {%- if target.entity_id.split('.')[0] == domain_filter -%}
+            {%- set en.tries = en.tries + [target.entity_id] -%}
+          {%- endif -%}
+        {%- else -%}
+          {%- for entity_id in target.entity_id -%}
+            {%- if entity_id.split('.')[0] == domain_filter -%}
+              {%- set en.tries = en.tries + [entity_id] -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+      {%- endif -%}
+      {{ en.tries | unique | sort | list }}
+    {%- endmacro -%}
+    {{ target_entities(lights) }}
+  sensor_entities: !input 'presence_targets'
+  pause_entities: !input 'pause_targets'
+  pause_state_target: !input 'pause_state_target'
+  any_on: '{{ light_entities | select(''is_state'', ''on'') | list | count > 0 }}'
+  any_off: '{{ light_entities | select(''is_state'', ''off'') | list | count > 0 }}'
+  any_occupied: '{{ sensor_entities | select(''is_state'', ''on'') | list | count > 0 }}'
+  any_paused: '{{ pause_entities | select(''is_state'', ''on'') | list | count > 0 }}'
+  was_paused: '{{ is_state(pause_state_target, ''on'') }}'
+  resume_time: !input 'resume_wait'
+  last_paused: '{{ as_timestamp(expand(pause_state_target)[0].last_changed) }}'
+  next_resume: '{{ last_paused + resume_time }}'
+  turn_on: !input 'turn_on_pause'
+  turn_off: !input 'turn_off_resume'
+  is_active: '{{ not was_paused and (not turn_off or (as_timestamp(now()) > next_resume)) }}'
+trigger:
+- platform: state
+  entity_id: !input 'presence_targets'
+  to:
+  - 'on'
+  - 'off'
+- platform: state
+  entity_id: !input 'pause_targets'
+  to:
+  - 'on'
+  - 'off'
+action:
+- choose:
+    - conditions:
+        - condition: template
+          value_template: '{{ any_paused and not was_paused }}'
+      sequence:
+        - alias: Pause the automation
+          service: input_boolean.turn_on
+          target:
+            entity_id: !input 'pause_state_target'
+        - if:
+            - condition: template
+              value_template: '{{ turn_on and any_off }}'
+          then:
+            - alias: Turn on the light
+              service: light.turn_on
+              target: !input 'light_targets'
+    - conditions:
+        - condition: template
+          value_template: '{{ not any_paused and was_paused }}'
+      sequence:
+        - alias: Resume the Automation
+          service: input_boolean.turn_off
+          target:
+            entity_id: !input 'pause_state_target'
+        - if:
+            - condition: template
+              value_template: '{{ turn_off and any_on }}'
+          then:
+            - alias: Turn on the light
+              service: light.turn_off
+              target: !input 'light_targets'
+          else:
+            - if:
+                - condition: template
+                  value_template: '{{ not any_occupied and any_on }}'
+              then:
+                - alias: Wait the number of seconds that has been set
+                  delay: !input no_presence_wait
+                - alias: Turn off the light
+                  service: light.turn_off
+                  target: !input 'light_targets'
+    - conditions:
+        - condition: template
+          value_template: '{{ is_active }}'
+      sequence:
+        - choose:
+            - conditions:
+                - condition: template
+                  value_template: '{{ any_occupied and any_off }}'
+              sequence:
+                - alias: Turn on the light
+                  service: light.turn_on
+                  target: !input 'light_targets'
+            - conditions:
+                - condition: template
+                  value_template: '{{ not any_occupied and any_on }}'
+              sequence:
+                - alias: Wait the number of seconds that has been set
+                  delay: !input no_presence_wait
+                - alias: Turn off the light
+                  service: light.turn_off
+                  target: !input 'light_targets'
+  default: []
