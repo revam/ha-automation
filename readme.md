@@ -7,7 +7,7 @@ use them as is, or just copy and modify them to your heart's desire.
 
 - `/lights` — Light based automation blueprints.
 
-  - `/presense_light.yaml` — Presense-activated Light.
+  - `/presence_light.yaml` — Presense-activated Light.
     <p>
       Turn on the lights when any kind of presence is detected, and
       turn them back off when no presence is detected after the wait time have
@@ -17,7 +17,7 @@ use them as is, or just copy and modify them to your heart's desire.
       <img src='https://my.home-assistant.io/badges/blueprint_import.svg' alt='Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.'  style="width: 100%; max-width: 212px;"/>
     </a>
 
-  - `/presense_light_with_pause.yaml` — Presense-activated Light with Pause.
+  - `/presence_light_with_pause.yaml` — Presense-activated Light with Pause.
     <p>
       Turn on the lights when any kind of presence is detected, and turn them
       back off when no presence is detected after the wait time have elapsed.
