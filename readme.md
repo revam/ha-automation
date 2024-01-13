@@ -24,8 +24,8 @@ use them as is, or just copy and modify them to your heart's desire.
       turn them back off when no presence is detected after the wait time have
       elapsed. Works with three kinds of sensor types; Motion, moving & occupancy.
     </p>
-    <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//github.com/revam/ha-automation/blob/main/blueprints/lights/presence_light.yaml" target='_blank' rel='noreferrer'>
-      <img src='https://my.home-assistant.io/badges/blueprint_import.svg' alt='Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.'  style="width: 100%; max-width: 212px;"/>
+    <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//github.com/revam/ha-automation/blob/main/blueprints/lights/presence_light.yaml" target="_blank" rel="noreferrer">
+      <img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled."  style="width: 100%; max-width: 212px;"/>
     </a>
 
   - `/presence_light_with_pause.yaml` — Presense-activated Light with Pause.
@@ -35,8 +35,8 @@ use them as is, or just copy and modify them to your heart's desire.
       Additionally, will pause the automation when a pause target is active.
       Works with three kinds of sensor types; Motion, moving & occupancy.
     </p>
-    <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//github.com/revam/ha-automation/blob/main/blueprints/lights/presence_light_with_pause.yaml" target='_blank' rel='noreferrer'>
-      <img src='https://my.home-assistant.io/badges/blueprint_import.svg' alt='Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.'  style="width: 100%; max-width: 212px;"/>
+    <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//github.com/revam/ha-automation/blob/main/blueprints/lights/presence_light_with_pause.yaml" target="_blank" rel="noreferrer">
+      <img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled."  style="width: 100%; max-width: 212px;"/>
     </a>
 
 ## License
