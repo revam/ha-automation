@@ -29,7 +29,7 @@ blueprint:
             domain:
             - binary_sensor
           multiple: true
-    no_presence_wait:
+    no_presence_timeout:
       name: No Presence Wait Time
       description: Time to leave the light on after no presence is detected.
       default: 120
@@ -63,20 +63,20 @@ blueprint:
           filter:
             domain: input_boolean
           multiple: false
-    turn_on_pause:
+    turn_on_all_on_pause:
       name: Turn On Lights when Paused
       description: Turn on all lights when the automation is paused.
       default: false
       selector:
         boolean:
-    turn_off_resume:
+    turn_off_all_on_resume:
       name: Turn Off Lights when Resumed
       description: Turn off all lights when the automation is resumed.
       default: false
       selector:
         boolean:
-    resume_wait:
-      name: Resume Wait Time
+    resume_deadzone_time:
+      name: Resume Dead-Zone Time
       description: Time to wait until reacting to presence events after resuming
         from a paused state.
       default: 30
@@ -132,89 +132,97 @@ variables:
   sensor_entities: !input 'presence_targets'
   pause_entities: !input 'pause_targets'
   pause_state_target: !input 'pause_state_target'
+  resume_deadzone_time: !input 'resume_deadzone_time'
+  turn_on_all_on_pause: !input 'turn_on_all_on_pause'
+  turn_off_all_on_resume: !input 'turn_off_all_on_resume'
   any_on: '{{ light_entities | select(''is_state'', ''on'') | list | count > 0 }}'
   any_off: '{{ light_entities | select(''is_state'', ''off'') | list | count > 0 }}'
-  any_occupied: '{{ sensor_entities | select(''is_state'', ''on'') | list | count > 0 }}'
+  any_detected: '{{ sensor_entities | select(''is_state'', ''on'') | list | count > 0 }}'
   any_paused: '{{ pause_entities | select(''is_state'', ''on'') | list | count > 0 }}'
-  was_paused: '{{ is_state(pause_state_target, ''on'') }}'
-  resume_time: !input 'resume_wait'
-  last_paused: '{{ as_timestamp(expand(pause_state_target)[0].last_changed) }}'
-  next_resume: '{{ last_paused + resume_time }}'
-  turn_on: !input 'turn_on_pause'
-  turn_off: !input 'turn_off_resume'
-  is_active: '{{ not was_paused and (not turn_off or (as_timestamp(now()) > next_resume)) }}'
+  is_paused: '{{ is_state(pause_state_target, ''on'') }}'
+  ran_at: '{{ as_timestamp(now()) }}'
+  last_paused_at: '{{ as_timestamp(expand(pause_state_target)[0].last_changed) }}'
+  resume_detection_at: '{{ last_paused_at + resume_deadzone_time }}'
+  is_active: '{{ not is_paused and (not turn_off_all_on_resume or ran_at > resume_detection_at) }}'
 trigger:
 - platform: state
   entity_id: !input 'presence_targets'
-  to:
-  - 'on'
-  - 'off'
+  to: 'on'
+- platform: state
+  entity_id: !input 'presence_targets'
+  to: 'off'
+  for:
+    seconds: !input 'no_presence_timeout'
 - platform: state
   entity_id: !input 'pause_targets'
   to:
   - 'on'
   - 'off'
 action:
-- choose:
+  - choose:
     - conditions:
         - condition: template
-          value_template: '{{ any_paused and not was_paused }}'
+          value_template: '{{ any_paused and not is_paused }}'
       sequence:
         - alias: Pause the automation
           service: input_boolean.turn_on
           target:
             entity_id: !input 'pause_state_target'
-        - if:
-            - condition: template
-              value_template: '{{ turn_on and any_off }}'
-          then:
-            - alias: Turn on the light
-              service: light.turn_on
-              target: !input 'light_targets'
+        - choose:
+          - conditions:
+            - alias: ""
+              condition: template
+              value_template: "{{ turn_on_all_on_pause and any_on }}"
+            sequence:
+              - alias: Turn on the light
+                service: light.turn_on
+                target: !input 'light_targets'
+                data:
+                  flash: short
+          - conditions:
+              - alias: ""
+                condition: template
+                value_template: "{{ turn_on_all_on_pause and any_off }}"
+            sequence:
+              - alias: Turn on the light
+                service: light.turn_on
+                target: !input 'light_targets'
     - conditions:
         - condition: template
-          value_template: '{{ not any_paused and was_paused }}'
+          value_template: '{{ not any_paused and is_paused }}'
       sequence:
         - alias: Resume the Automation
           service: input_boolean.turn_off
           target:
             entity_id: !input 'pause_state_target'
-        - if:
-            - condition: template
-              value_template: '{{ turn_off and any_on }}'
-          then:
-            - alias: Turn on the light
-              service: light.turn_off
-              target: !input 'light_targets'
-          else:
-            - if:
-                - condition: template
-                  value_template: '{{ not any_occupied and any_on }}'
-              then:
-                - alias: Wait the number of seconds that has been set
-                  delay: !input no_presence_wait
-                - alias: Turn off the light
-                  service: light.turn_off
-                  target: !input 'light_targets'
+        - choose:
+          - conditions:
+              - condition: template
+                value_template: '{{ turn_off_all_on_resume and any_on }}'
+            sequence:
+              - alias: Turn on the light
+                service: light.turn_off
+                target: !input 'light_targets'
+          - conditions:
+              - condition: template
+                value_template: '{{ not any_detected and any_on }}'
+            sequence:
+              - alias: Wait for the no-presence timeout to elapse.
+                delay: !input 'no_presence_timeout'
+              - alias: Turn off the light
+                service: light.turn_off
+                target: !input 'light_targets'
     - conditions:
         - condition: template
-          value_template: '{{ is_active }}'
+          value_template: '{{ is_active and any_detected and any_off }}'
       sequence:
-        - choose:
-            - conditions:
-                - condition: template
-                  value_template: '{{ any_occupied and any_off }}'
-              sequence:
-                - alias: Turn on the light
-                  service: light.turn_on
-                  target: !input 'light_targets'
-            - conditions:
-                - condition: template
-                  value_template: '{{ not any_occupied and any_on }}'
-              sequence:
-                - alias: Wait the number of seconds that has been set
-                  delay: !input no_presence_wait
-                - alias: Turn off the light
-                  service: light.turn_off
-                  target: !input 'light_targets'
-  default: []
+        - alias: Turn on the light upon detection.
+          service: light.turn_on
+          target: !input 'light_targets'
+    - conditions:
+        - condition: template
+          value_template: '{{ is_active and not any_detected and any_on }}'
+      sequence:
+        - alias: Turn off the light after no-presense timeout has elapsed.
+          service: light.turn_off
+          target: !input 'light_targets'
