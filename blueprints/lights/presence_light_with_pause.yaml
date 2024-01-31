@@ -53,6 +53,8 @@ blueprint:
             - switch
             - binary_sensor
             - input_boolean
+            - remote
+            - light
           multiple: true
     pause_state_target:
       name: Paused State
