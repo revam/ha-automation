@@ -179,6 +179,8 @@ action:
               condition: template
               value_template: "{{ turn_on_all_on_pause and any_on }}"
             sequence:
+              - alias: Wait for the no-act timeout to elapse.
+                delay: 1
               - alias: Turn on the light
                 service: light.turn_on
                 target: !input 'light_targets'
