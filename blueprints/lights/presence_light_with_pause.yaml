@@ -71,6 +71,19 @@ blueprint:
       default: false
       selector:
         boolean:
+    turn_on_wait:
+      name: Turn On Lights when Paused Delay
+      description: A delay that have to elapse before the lights are turned on.
+        Useful if you want to toggle a paused target on/off to enact the
+        resume dead-zone without flashing the lights in the process.
+      default: 10
+      selector:
+        number:
+          min: 0.0
+          max: 1000.0
+          unit_of_measurement: milliseconds
+          step: 1.0
+          mode: slider
     turn_off_all_on_resume:
       name: Turn Off Lights when Resumed
       description: Turn off all lights when the automation is resumed.
@@ -180,7 +193,8 @@ action:
               value_template: "{{ turn_on_all_on_pause and any_on }}"
             sequence:
               - alias: Wait for the no-act timeout to elapse.
-                delay: 1
+                delay:
+                  milliseconds: !input 'turn_on_wait'
               - alias: Turn on the light
                 service: light.turn_on
                 target: !input 'light_targets'
@@ -191,6 +205,9 @@ action:
                 condition: template
                 value_template: "{{ turn_on_all_on_pause and any_off }}"
             sequence:
+              - alias: Wait for the no-act timeout to elapse.
+                delay:
+                  milliseconds: !input 'turn_on_wait'
               - alias: Turn on the light
                 service: light.turn_on
                 target: !input 'light_targets'
@@ -207,7 +224,7 @@ action:
               - condition: template
                 value_template: '{{ turn_off_all_on_resume and any_on }}'
             sequence:
-              - alias: Turn on the light
+              - alias: Turn off the light
                 service: light.turn_off
                 target: !input 'light_targets'
           - conditions:
