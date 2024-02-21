@@ -142,7 +142,7 @@ variables:
   any_on: '{{ light_entities | select(''is_state'', ''on'') | list | count > 0 }}'
   any_off: '{{ light_entities | select(''is_state'', ''off'') | list | count > 0 }}'
   actively_detected: '{{ sensor_entities | select(''is_state'', ''on'') | list | count > 0 }}'
-  recently_detected: '{{ sensor_entries | select(''is_state'', ''off'') | expand | selectattr(''last_changed'', ''gt'', as_datetime(float(ran_at) - float(no_presence_timeout) + 1)) | list | count > 0 }}'
+  recently_detected: '{{ sensor_entities | select(''is_state'', ''off'') | expand | selectattr(''last_changed'', ''gt'', as_datetime(float(ran_at) - float(no_presence_timeout) + 1)) | list | count > 0 }}'
   any_detected: '{{ bool(actively_detected or recently_detected) }}'
   any_paused: '{{ pause_entities | select(''is_state'', ''on'') | list | count > 0 }}'
   is_paused: '{{ is_state(pause_state_target, ''on'') }}'
