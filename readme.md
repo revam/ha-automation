@@ -7,6 +7,15 @@ use them as is, or just copy and modify them to your heart's desire.
 
 - `/events` — Event based automation blueprints.
 
+  - `/door_presence.yaml` — Door Presence.
+    <p>
+      A simple(?) automation to detect presence inside a room when the door is
+      closed. Can also be used to run any actions when the state changes.
+    </p>
+    <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//github.com/revam/ha-automation/blob/main/blueprints/events/door_presence.yaml" target="_blank" rel="noreferrer">
+      <img src="https://my.home-assistant.io/badges/blueprint_import.svg" alt="Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled."  style="width: 100%; max-width: 212px;"/>
+    </a>
+
   - `/rflink_button_events.yaml` — RFLink Button Events.
     <p>
       A simple automation blueprint to run actions when pressing the buttons on

@@ -1,0 +1,171 @@
+blueprint:
+  name: Door Presense
+  description: A simple(?) automation to detect presence inside a room when the
+    door is closed. Can also be used to run any actions when the state changes.
+  domain: automation
+  source_url: https://github.com/revam/ha-automation/blob/main/blueprints/sensors/door_presence.yaml
+  author: revam
+  input:
+    door_targets:
+      name: Door Sensor(s)
+      description: The door sensor(s).
+      selector:
+        entity:
+          filter:
+            device_class:
+              - door
+              - garage_door
+              - window
+              - opening
+              - lock
+            domain: binary_sensor
+          multiple: true
+    presence_targets:
+      name: Presense Sensor(s)
+      description: The sensor(s) used to detect presence in the area to monitor.
+      selector:
+        entity:
+          filter:
+            device_class:
+              - motion
+              - moving
+              - occupancy
+              - door
+              - garage_door
+              - window
+              - opening
+              - lock
+            domain: binary_sensor
+          multiple: true
+    output_state_target:
+      name: Output Door State
+      description: The output door state. Used to detect when the active door
+        state changes and act accordingly.
+      selector:
+        entity:
+          filter:
+            domain: input_boolean
+          multiple: false
+    presence_dead_zone:
+      name: Door Closed Presence No-Action Dead-Zone
+      description: "Time to ignore any presense events which occurs, before
+        checking for any active or recently active presence events."
+      default: 50
+      selector:
+        number:
+          min: 0
+          max: 10000
+          unit_of_measurement: ms
+    presence_check_wait:
+      name: Door Closed Presence Wait Time
+      description: Time to wait before checking for presense after the door has
+        been closed. The dead-zone will be appended to this value before use.
+      default: 950
+      selector:
+        number:
+          min: 100
+          max: 30000
+          unit_of_measurement: ms
+    action_door_opened:
+      name: (Optional) Door Opened Action(s)
+      description: Action(s) to run on when the door is opened.
+      default: []
+      selector:
+        action: {}
+    action_door_closed:
+      name: (Optional) Door Closed Action(s)
+      description: Action(s) to run on when the door is closed.
+      default: []
+      selector:
+        action: {}
+mode: restart
+max_exceeded: silent
+variables:
+  output_state_target: !input 'output_state_target'
+  is_enabled: '{{ is_state(output_state_target, ''on'') }}'
+
+trigger:
+- id: door_opened
+  platform: state
+  entity_id: !input 'door_targets'
+  to: 'on'
+
+- id: door_closed
+  platform: state
+  entity_id: !input 'door_targets'
+  to: 'off'
+
+action:
+  - choose:
+      - alias: "Attempt to Disable Door State"
+        conditions:
+          - condition: trigger
+            id: door_opened
+        sequence:
+          - alias: "Abort if Door State is already Disabled"
+            if:
+              - condition: template
+                value_template: "{{ not is_enabled }}"
+            then:
+              - stop: "Door State is already Disabled"
+
+          - alias: Disable the Door State
+            service: input_boolean.turn_off
+            target:
+              entity_id: !input 'output_state_target'
+
+          - alias: Run 'Door Opened' Action
+            choose:
+              - conditions: []
+                sequence: !input 'action_door_opened'
+
+      - alias: "Attempt to Enable Door State"
+        conditions:
+          - condition: trigger
+            id: door_closed
+        sequence:
+          - alias: "Check if any doors are open"
+            variables:
+              doors: !input 'door_targets'
+              any_doors_open: "{{ doors | select('is_state', 'on') | list | count > 0 }}"
+          - alias: "Abort if Door State is already enabled or any doors are open"
+            if:
+              - condition: template
+                value_template: "{{ is_enabled or any_doors_open }}"
+            then:
+              - stop: "Door State already enabled or any doors are open"
+
+          - alias: "Store current time + dead-zone"
+            variables:
+              presence_dead_zone: !input 'presence_dead_zone'
+              presence_check_wait: !input 'presence_check_wait'
+              check_time_start: "{{ as_timestamp(now() + timedelta(milliseconds = presence_dead_zone)) }}"
+              delay_time: "{{ presence_dead_zone + presence_check_wait }}"
+
+          - alias: "Wait for the time to elapse"
+            delay:
+              milliseconds: "{{ delay_time }}"
+
+          - alias: "Check if we had any presence events since 'check_time_start'"
+            variables:
+              sensor_entities: !input 'presence_targets'
+              actively_detected: "{{ sensor_entities | select('is_state','on') | list | count > 0 }}"
+              recently_detected: "{{ sensor_entities | select('is_state', 'off') | expand | selectattr('last_changed', 'gt', as_datetime(check_time_start)) | list | count > 0 }}"
+
+          - alias: "Abort if no events detected"
+            if:
+              - condition: template
+                value_template: "{{ not actively_detected and not recently_detected }}"
+            then:
+              - stop: "No events detected"
+
+          - alias: Enable the Door State
+            service: input_boolean.turn_on
+            target:
+              entity_id: !input 'output_state_target'
+
+          - alias: Run 'Door Closed' Action
+            choose:
+              - conditions: []
+                sequence: !input 'action_door_closed'
+    default: []
