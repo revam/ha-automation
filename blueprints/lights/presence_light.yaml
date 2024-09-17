@@ -24,6 +24,11 @@ blueprint:
               - motion
               - moving
               - occupancy
+              - door
+              - garage_door
+              - window
+              - opening
+              - lock
             domain: binary_sensor
           multiple: true
     no_presence_wait:
