@@ -76,6 +76,13 @@ blueprint:
       default: false
       selector:
         boolean:
+    turn_on_ack:
+      name: Visually Indicate when Paused
+      description: Blink the lights to indicate that the automation is paused if
+        the lights were already on.
+      default: true
+      selector:
+        boolean:
     turn_on_wait:
       name: Turn On Lights when Paused Delay
       description: A delay that have to elapse before the lights are turned on.
@@ -155,6 +162,7 @@ variables:
   resume_deadzone_time: !input 'resume_deadzone_time'
   turn_on_all_on_pause: !input 'turn_on_all_on_pause'
   turn_off_all_on_resume: !input 'turn_off_all_on_resume'
+  turn_on_ack: !input 'turn_on_ack'
   no_presence_timeout: !input 'no_presence_timeout'
   ran_at: '{{ as_timestamp(now()) }}'
   any_on: '{{ light_entities | select(''is_state'', ''on'') | list | count > 0 }}'
@@ -195,7 +203,7 @@ action:
           - conditions:
             - alias: ""
               condition: template
-              value_template: "{{ turn_on_all_on_pause and any_on }}"
+              value_template: "{{ turn_on_all_on_pause and any_on and turn_on_ack }}"
             sequence:
               - alias: Wait for the no-act timeout to elapse.
                 delay:
